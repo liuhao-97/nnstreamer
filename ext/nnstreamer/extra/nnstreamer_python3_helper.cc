@@ -584,7 +584,7 @@ nnstreamer_python_status_check ()
     return -EINVAL;
   }
 
-  assert (Py_IsInitialized ());
+  // assert (Py_IsInitialized ());
   return 0;
 }
 

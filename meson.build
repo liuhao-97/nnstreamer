@@ -9,9 +9,29 @@ project('nnstreamer', 'c', 'cpp',
     'werror=true',
     'warning_level=2',
     'c_std=gnu89',
-    'cpp_std=c++17'
+    'cpp_std=c++17',
+    'b_lundef=false'
+
   ]
 )
+
+
+
+
+# Retrieve PyTorch include and lib directories using Python
+pytorch_include_dir = '/usr/local/lib/python3.8/dist-packages/torch/include'
+pytorch_lib_dir = '/usr/local/lib/python3.8/dist-packages/torch/lib'
+
+# Add PyTorch include directories
+include_directories(pytorch_include_dir,'/usr/local/lib/python3.8/dist-packages/torch/include/torch/csrc/api/include')
+
+# Add PyTorch library directory and libraries
+add_project_link_arguments('-L' + pytorch_lib_dir, '-ltorch',  '-lc10', language: 'cpp')
+
+# Adding new linker flags specifically for C++ linking
+add_project_link_arguments(['-Wl,--no-as-needed', '-ltorch_cuda'], language: 'cpp')
+
+
 
 add_project_arguments('-DVERSION="' + meson.project_version() + '"', language: ['c', 'cpp'])
 version_split = meson.project_version().split('.')
