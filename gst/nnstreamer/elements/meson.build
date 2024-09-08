@@ -1,5 +1,6 @@
 nnstreamer_sources += files(
   'gsttensor_aggregator.c',
+  'gsttensor_reschedule.c',
   'gsttensor_converter.c',
   'gsttensor_crop.c',
   'gsttensor_debug.c',
