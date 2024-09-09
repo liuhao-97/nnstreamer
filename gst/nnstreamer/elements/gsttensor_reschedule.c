@@ -30,10 +30,10 @@
 #include <config.h>
 #endif
 
+#include <nnstreamer_util.h>
 #include <string.h>
 #include "gsttensor_reschedule.h"
 #include "tensor_meta.h"
-#include <nnstreamer_util.h>
 
 /**
  * @brief Macro for debug mode.
@@ -42,16 +42,18 @@
 #define DBG (!self->silent)
 #endif
 
-#define silent_debug_config(self,c,msg) do { \
-  if (DBG) { \
-    if (c) { \
-      gchar *dim_str; \
-      dim_str = gst_tensor_get_dimension_string ((c)->info.info[0].dimension); \
-      GST_DEBUG_OBJECT (self, msg " type=%d dim=%s rate=%d/%d", (c)->info.info[0].type, dim_str, (c)->rate_n, (c)->rate_d); \
-      g_free (dim_str); \
-    } \
-  } \
-} while (0)
+#define silent_debug_config(self, c, msg)                                        \
+  do {                                                                           \
+    if (DBG) {                                                                   \
+      if (c) {                                                                   \
+        gchar *dim_str;                                                          \
+        dim_str = gst_tensor_get_dimension_string ((c)->info.info[0].dimension); \
+        GST_DEBUG_OBJECT (self, msg " type=%d dim=%s rate=%d/%d",                \
+            (c)->info.info[0].type, dim_str, (c)->rate_n, (c)->rate_d);          \
+        g_free (dim_str);                                                        \
+      }                                                                          \
+    }                                                                            \
+  } while (0)
 
 GST_DEBUG_CATEGORY_STATIC (gst_tensor_reschedule_debug);
 #define GST_CAT_DEFAULT gst_tensor_reschedule_debug
@@ -59,8 +61,7 @@ GST_DEBUG_CATEGORY_STATIC (gst_tensor_reschedule_debug);
 /**
  * @brief tensor_reschedule properties
  */
-enum
-{
+enum {
   PROP_0,
   PROP_FRAMES_IN,
   PROP_FRAMES_OUT,
@@ -108,51 +109,46 @@ enum
 /**
  * @brief Template for sink pad.
  */
-static GstStaticPadTemplate sink_template = GST_STATIC_PAD_TEMPLATE ("sink",
-    GST_PAD_SINK,
-    GST_PAD_ALWAYS,
-    GST_STATIC_CAPS (CAPS_STRING));
+static GstStaticPadTemplate sink_template = GST_STATIC_PAD_TEMPLATE (
+    "sink", GST_PAD_SINK, GST_PAD_ALWAYS, GST_STATIC_CAPS (CAPS_STRING));
 
 /**
  * @brief Template for src pad.
  */
-static GstStaticPadTemplate src_template = GST_STATIC_PAD_TEMPLATE ("src",
-    GST_PAD_SRC,
-    GST_PAD_ALWAYS,
-    GST_STATIC_CAPS (CAPS_STRING));
+static GstStaticPadTemplate src_template = GST_STATIC_PAD_TEMPLATE (
+    "src", GST_PAD_SRC, GST_PAD_ALWAYS, GST_STATIC_CAPS (CAPS_STRING));
 
 #define gst_tensor_reschedule_parent_class parent_class
 G_DEFINE_TYPE (GstTensorReschedule, gst_tensor_reschedule, GST_TYPE_ELEMENT);
 
-static void gst_tensor_reschedule_finalize (GObject * object);
-static void gst_tensor_reschedule_set_property (GObject * object,
-    guint prop_id, const GValue * value, GParamSpec * pspec);
-static void gst_tensor_reschedule_get_property (GObject * object,
-    guint prop_id, GValue * value, GParamSpec * pspec);
+static void gst_tensor_reschedule_finalize (GObject *object);
+static void gst_tensor_reschedule_set_property (
+    GObject *object, guint prop_id, const GValue *value, GParamSpec *pspec);
+static void gst_tensor_reschedule_get_property (
+    GObject *object, guint prop_id, GValue *value, GParamSpec *pspec);
 
-static gboolean gst_tensor_reschedule_sink_event (GstPad * pad,
-    GstObject * parent, GstEvent * event);
-static gboolean gst_tensor_reschedule_sink_query (GstPad * pad,
-    GstObject * parent, GstQuery * query);
-static gboolean gst_tensor_reschedule_src_query (GstPad * pad,
-    GstObject * parent, GstQuery * query);
-static GstFlowReturn gst_tensor_reschedule_chain (GstPad * pad,
-    GstObject * parent, GstBuffer * buf);
-static GstStateChangeReturn
-gst_tensor_reschedule_change_state (GstElement * element,
-    GstStateChange transition);
+static gboolean gst_tensor_reschedule_sink_event (
+    GstPad *pad, GstObject *parent, GstEvent *event);
+static gboolean gst_tensor_reschedule_sink_query (
+    GstPad *pad, GstObject *parent, GstQuery *query);
+static gboolean gst_tensor_reschedule_src_query (
+    GstPad *pad, GstObject *parent, GstQuery *query);
+static GstFlowReturn gst_tensor_reschedule_chain (
+    GstPad *pad, GstObject *parent, GstBuffer *buf);
+static GstStateChangeReturn gst_tensor_reschedule_change_state (
+    GstElement *element, GstStateChange transition);
 
-static void gst_tensor_reschedule_reset (GstTensorReschedule * self);
-static GstCaps *gst_tensor_reschedule_query_caps (GstTensorReschedule * self,
-    GstPad * pad, GstCaps * filter);
-static gboolean gst_tensor_reschedule_parse_caps (GstTensorReschedule * self,
-    const GstCaps * caps);
+static void gst_tensor_reschedule_reset (GstTensorReschedule *self);
+static GstCaps *gst_tensor_reschedule_query_caps (
+    GstTensorReschedule *self, GstPad *pad, GstCaps *filter);
+static gboolean gst_tensor_reschedule_parse_caps (
+    GstTensorReschedule *self, const GstCaps *caps);
 
 /**
  * @brief Initialize the tensor_reschedule's class.
  */
 static void
-gst_tensor_reschedule_class_init (GstTensorRescheduleClass * klass)
+gst_tensor_reschedule_class_init (GstTensorRescheduleClass *klass)
 {
   GObjectClass *object_class;
   GstElementClass *element_class;
@@ -194,8 +190,8 @@ gst_tensor_reschedule_class_init (GstTensorRescheduleClass * klass)
    * GstTensorReschedule::frames-flush:
    *
    * The number of frames to flush.
-   * GstTensoReschedule flushes the bytes (N frames) in GstAdapter after pushing a buffer.
-   * If set 0 (default value), all outgoing frames will be flushed.
+   * GstTensoReschedule flushes the bytes (N frames) in GstAdapter after pushing
+   * a buffer. If set 0 (default value), all outgoing frames will be flushed.
    */
   g_object_class_install_property (object_class, PROP_FRAMES_FLUSH,
       g_param_spec_uint ("frames-flush", "Frames to flush",
@@ -211,15 +207,15 @@ gst_tensor_reschedule_class_init (GstTensorRescheduleClass * klass)
    */
   g_object_class_install_property (object_class, PROP_FRAMES_DIMENSION,
       g_param_spec_uint ("frames-dim", "Dimension index of frames",
-          "The dimension index of frames in tensor",
-          0, (NNS_TENSOR_RANK_LIMIT - 1), DEFAULT_FRAMES_DIMENSION,
-          G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+          "The dimension index of frames in tensor", 0, (NNS_TENSOR_RANK_LIMIT - 1),
+          DEFAULT_FRAMES_DIMENSION, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
   /**
    * GstTensorReschedule::concat:
    *
    * The flag to concatenate output buffer.
-   * If concat is true and frames-out is larger than 1, GstTensorReschedule will concatenate the output buffer with the axis frames-dim.
+   * If concat is true and frames-out is larger than 1, GstTensorReschedule will
+   * concatenate the output buffer with the axis frames-dim.
    */
   g_object_class_install_property (object_class, PROP_CONCAT,
       g_param_spec_boolean ("concat", "Concat", "Concatenate output buffer",
@@ -234,15 +230,13 @@ gst_tensor_reschedule_class_init (GstTensorRescheduleClass * klass)
       g_param_spec_boolean ("silent", "Silent", "Produce verbose output",
           DEFAULT_SILENT, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
-  gst_element_class_set_static_metadata (element_class,
-      "TensorReschedule",
-      "Filter/Tensor",
+  gst_element_class_set_static_metadata (element_class, "TensorReschedule", "Filter/Tensor",
       "Element to aggregate tensor stream", "Samsung Electronics Co., Ltd.");
 
-  gst_element_class_add_pad_template (element_class,
-      gst_static_pad_template_get (&src_template));
-  gst_element_class_add_pad_template (element_class,
-      gst_static_pad_template_get (&sink_template));
+  gst_element_class_add_pad_template (
+      element_class, gst_static_pad_template_get (&src_template));
+  gst_element_class_add_pad_template (
+      element_class, gst_static_pad_template_get (&sink_template));
 
   element_class->change_state = gst_tensor_reschedule_change_state;
 }
@@ -251,23 +245,22 @@ gst_tensor_reschedule_class_init (GstTensorRescheduleClass * klass)
  * @brief Initialize tensor_reschedule element.
  */
 static void
-gst_tensor_reschedule_init (GstTensorReschedule * self)
+gst_tensor_reschedule_init (GstTensorReschedule *self)
 {
   /** setup sink pad */
   self->sinkpad = gst_pad_new_from_static_template (&sink_template, "sink");
-  gst_pad_set_event_function (self->sinkpad,
-      GST_DEBUG_FUNCPTR (gst_tensor_reschedule_sink_event));
-  gst_pad_set_query_function (self->sinkpad,
-      GST_DEBUG_FUNCPTR (gst_tensor_reschedule_sink_query));
-  gst_pad_set_chain_function (self->sinkpad,
-      GST_DEBUG_FUNCPTR (gst_tensor_reschedule_chain));
+  gst_pad_set_event_function (
+      self->sinkpad, GST_DEBUG_FUNCPTR (gst_tensor_reschedule_sink_event));
+  gst_pad_set_query_function (
+      self->sinkpad, GST_DEBUG_FUNCPTR (gst_tensor_reschedule_sink_query));
+  gst_pad_set_chain_function (self->sinkpad, GST_DEBUG_FUNCPTR (gst_tensor_reschedule_chain));
   GST_PAD_SET_PROXY_CAPS (self->sinkpad);
   gst_element_add_pad (GST_ELEMENT (self), self->sinkpad);
 
   /** setup src pad */
   self->srcpad = gst_pad_new_from_static_template (&src_template, "src");
-  gst_pad_set_query_function (self->srcpad,
-      GST_DEBUG_FUNCPTR (gst_tensor_reschedule_src_query));
+  gst_pad_set_query_function (
+      self->srcpad, GST_DEBUG_FUNCPTR (gst_tensor_reschedule_src_query));
   GST_PAD_SET_PROXY_CAPS (self->srcpad);
   gst_element_add_pad (GST_ELEMENT (self), self->srcpad);
 
@@ -291,7 +284,7 @@ gst_tensor_reschedule_init (GstTensorReschedule * self)
  * @brief Function to finalize instance.
  */
 static void
-gst_tensor_reschedule_finalize (GObject * object)
+gst_tensor_reschedule_finalize (GObject *object)
 {
   GstTensorReschedule *self;
 
@@ -310,8 +303,8 @@ gst_tensor_reschedule_finalize (GObject * object)
  * @brief Setter for tensor_reschedule properties.
  */
 static void
-gst_tensor_reschedule_set_property (GObject * object, guint prop_id,
-    const GValue * value, GParamSpec * pspec)
+gst_tensor_reschedule_set_property (
+    GObject *object, guint prop_id, const GValue *value, GParamSpec *pspec)
 {
   GstTensorReschedule *self;
 
@@ -346,8 +339,8 @@ gst_tensor_reschedule_set_property (GObject * object, guint prop_id,
  * @brief Getter for tensor_reschedule properties.
  */
 static void
-gst_tensor_reschedule_get_property (GObject * object, guint prop_id,
-    GValue * value, GParamSpec * pspec)
+gst_tensor_reschedule_get_property (
+    GObject *object, guint prop_id, GValue *value, GParamSpec *pspec)
 {
   GstTensorReschedule *self;
 
@@ -382,8 +375,7 @@ gst_tensor_reschedule_get_property (GObject * object, guint prop_id,
  * @brief This function handles sink events.
  */
 static gboolean
-gst_tensor_reschedule_sink_event (GstPad * pad, GstObject * parent,
-    GstEvent * event)
+gst_tensor_reschedule_sink_event (GstPad *pad, GstObject *parent, GstEvent *event)
 {
   GstTensorReschedule *self;
 
@@ -394,29 +386,28 @@ gst_tensor_reschedule_sink_event (GstPad * pad, GstObject * parent,
 
   switch (GST_EVENT_TYPE (event)) {
     case GST_EVENT_CAPS:
-    {
-      GstCaps *in_caps;
-      GstCaps *out_caps;
+      {
+        GstCaps *in_caps;
+        GstCaps *out_caps;
 
-      gst_event_parse_caps (event, &in_caps);
-      silent_debug_caps (self, in_caps, "in-caps");
+        gst_event_parse_caps (event, &in_caps);
+        silent_debug_caps (self, in_caps, "in-caps");
 
-      if (gst_tensor_reschedule_parse_caps (self, in_caps)) {
-        gboolean ret = FALSE;
+        if (gst_tensor_reschedule_parse_caps (self, in_caps)) {
+          gboolean ret = FALSE;
 
-        out_caps =
-            gst_tensor_pad_caps_from_config (self->srcpad, &self->out_config);
-        silent_debug_caps (self, out_caps, "out-caps");
+          out_caps = gst_tensor_pad_caps_from_config (self->srcpad, &self->out_config);
+          silent_debug_caps (self, out_caps, "out-caps");
 
-        ret = gst_pad_set_caps (self->srcpad, out_caps);
+          ret = gst_pad_set_caps (self->srcpad, out_caps);
 
-        gst_event_unref (event);
-        gst_caps_unref (out_caps);
+          gst_event_unref (event);
+          gst_caps_unref (out_caps);
 
-        return ret;
+          return ret;
+        }
+        break;
       }
-      break;
-    }
     case GST_EVENT_FLUSH_STOP:
       gst_tensor_reschedule_reset (self);
       break;
@@ -431,8 +422,7 @@ gst_tensor_reschedule_sink_event (GstPad * pad, GstObject * parent,
  * @brief This function handles sink pad query.
  */
 static gboolean
-gst_tensor_reschedule_sink_query (GstPad * pad, GstObject * parent,
-    GstQuery * query)
+gst_tensor_reschedule_sink_query (GstPad *pad, GstObject *parent, GstQuery *query)
 {
   GstTensorReschedule *self;
 
@@ -443,36 +433,36 @@ gst_tensor_reschedule_sink_query (GstPad * pad, GstObject * parent,
 
   switch (GST_QUERY_TYPE (query)) {
     case GST_QUERY_CAPS:
-    {
-      GstCaps *caps;
-      GstCaps *filter;
+      {
+        GstCaps *caps;
+        GstCaps *filter;
 
-      gst_query_parse_caps (query, &filter);
-      caps = gst_tensor_reschedule_query_caps (self, pad, filter);
+        gst_query_parse_caps (query, &filter);
+        caps = gst_tensor_reschedule_query_caps (self, pad, filter);
 
-      gst_query_set_caps_result (query, caps);
-      gst_caps_unref (caps);
-      return TRUE;
-    }
-    case GST_QUERY_ACCEPT_CAPS:
-    {
-      GstCaps *caps;
-      GstCaps *template_caps;
-      gboolean res = FALSE;
-
-      gst_query_parse_accept_caps (query, &caps);
-      silent_debug_caps (self, caps, "accept-caps");
-
-      if (gst_caps_is_fixed (caps)) {
-        template_caps = gst_pad_get_pad_template_caps (pad);
-
-        res = gst_caps_can_intersect (template_caps, caps);
-        gst_caps_unref (template_caps);
+        gst_query_set_caps_result (query, caps);
+        gst_caps_unref (caps);
+        return TRUE;
       }
+    case GST_QUERY_ACCEPT_CAPS:
+      {
+        GstCaps *caps;
+        GstCaps *template_caps;
+        gboolean res = FALSE;
 
-      gst_query_set_accept_caps_result (query, res);
-      return TRUE;
-    }
+        gst_query_parse_accept_caps (query, &caps);
+        silent_debug_caps (self, caps, "accept-caps");
+
+        if (gst_caps_is_fixed (caps)) {
+          template_caps = gst_pad_get_pad_template_caps (pad);
+
+          res = gst_caps_can_intersect (template_caps, caps);
+          gst_caps_unref (template_caps);
+        }
+
+        gst_query_set_accept_caps_result (query, res);
+        return TRUE;
+      }
     default:
       break;
   }
@@ -484,8 +474,7 @@ gst_tensor_reschedule_sink_query (GstPad * pad, GstObject * parent,
  * @brief This function handles src pad query.
  */
 static gboolean
-gst_tensor_reschedule_src_query (GstPad * pad, GstObject * parent,
-    GstQuery * query)
+gst_tensor_reschedule_src_query (GstPad *pad, GstObject *parent, GstQuery *query)
 {
   GstTensorReschedule *self;
 
@@ -496,17 +485,17 @@ gst_tensor_reschedule_src_query (GstPad * pad, GstObject * parent,
 
   switch (GST_QUERY_TYPE (query)) {
     case GST_QUERY_CAPS:
-    {
-      GstCaps *caps;
-      GstCaps *filter;
+      {
+        GstCaps *caps;
+        GstCaps *filter;
 
-      gst_query_parse_caps (query, &filter);
-      caps = gst_tensor_reschedule_query_caps (self, pad, filter);
+        gst_query_parse_caps (query, &filter);
+        caps = gst_tensor_reschedule_query_caps (self, pad, filter);
 
-      gst_query_set_caps_result (query, caps);
-      gst_caps_unref (caps);
-      return TRUE;
-    }
+        gst_query_set_caps_result (query, caps);
+        gst_caps_unref (caps);
+        return TRUE;
+      }
     default:
       break;
   }
@@ -518,7 +507,7 @@ gst_tensor_reschedule_src_query (GstPad * pad, GstObject * parent,
  * @brief Internal function to get adapter.
  */
 static GstAdapter *
-gst_tensor_reschedule_get_adapter (GstTensorReschedule * self, GstBuffer * buf)
+gst_tensor_reschedule_get_adapter (GstTensorReschedule *self, GstBuffer *buf)
 {
   GstMetaQuery *meta;
   guint32 key = 0;
@@ -537,8 +526,7 @@ gst_tensor_reschedule_get_adapter (GstTensorReschedule * self, GstBuffer * buf)
  * @return True if needed to concatenate
  */
 static gboolean
-gst_tensor_reschedule_check_concat_axis (GstTensorReschedule * self,
-    const GstTensorInfo * info)
+gst_tensor_reschedule_check_concat_axis (GstTensorReschedule *self, const GstTensorInfo *info)
 {
   guint i;
 
@@ -566,8 +554,8 @@ gst_tensor_reschedule_check_concat_axis (GstTensorReschedule * self,
  * @param info tensor info for one frame
  */
 static gboolean
-gst_tensor_reschedule_concat (GstTensorReschedule * self, GstBuffer * outbuf,
-    const GstTensorInfo * info)
+gst_tensor_reschedule_concat (
+    GstTensorReschedule *self, GstBuffer *outbuf, const GstTensorInfo *info)
 {
   GstBuffer *srcbuf;
   GstMapInfo src_info, dest_info;
@@ -802,8 +790,7 @@ gst_tensor_reschedule_concat (GstTensorReschedule * self, GstBuffer * outbuf,
  * @brief Push the buffer to source pad. (Concatenate the buffer if needed)
  */
 static GstFlowReturn
-gst_tensor_reschedule_push (GstTensorReschedule * self, GstBuffer * outbuf,
-    gsize frame_size)
+gst_tensor_reschedule_push (GstTensorReschedule *self, GstBuffer *outbuf, gsize frame_size)
 {
   GstTensorInfo info;
 
@@ -813,9 +800,8 @@ gst_tensor_reschedule_push (GstTensorReschedule * self, GstBuffer * outbuf,
   info.dimension[self->frames_dim] /= self->frames_out;
 
   if (frame_size != gst_tensor_info_get_size (&info) || frame_size == 0U) {
-    ml_logf
-        ("Invalid output capability of tensor_reschedule. Frame size = %"
-        G_GSIZE_FORMAT "\n", frame_size);
+    ml_logf ("Invalid output capability of tensor_reschedule. Frame size = %" G_GSIZE_FORMAT "\n",
+        frame_size);
     return GST_FLOW_ERROR;
   }
 
@@ -832,7 +818,7 @@ gst_tensor_reschedule_push (GstTensorReschedule * self, GstBuffer * outbuf,
  * @brief Chain function, this function does the actual processing.
  */
 static GstFlowReturn
-gst_tensor_reschedule_chain (GstPad * pad, GstObject * parent, GstBuffer * buf)
+gst_tensor_reschedule_chain (GstPad *pad, GstObject *parent, GstBuffer *buf)
 {
   GstTensorReschedule *self;
   GstFlowReturn ret = GST_FLOW_OK;
@@ -847,6 +833,7 @@ gst_tensor_reschedule_chain (GstPad * pad, GstObject * parent, GstBuffer * buf)
 
   buf_size = gst_buffer_get_size (buf);
   g_return_val_if_fail (buf_size > 0, GST_FLOW_ERROR);
+  printf ("buf_size: %d\n", buf_size);
 
   frames_in = self->frames_in;
   frames_out = self->frames_out;
@@ -872,8 +859,7 @@ gst_tensor_reschedule_chain (GstPad * pad, GstObject * parent, GstBuffer * buf)
   out_size = frame_size * frames_out;
   g_assert (out_size > 0);
 
-  while ((avail = gst_adapter_available (adapter)) >= out_size &&
-      ret == GST_FLOW_OK) {
+  while ((avail = gst_adapter_available (adapter)) >= out_size && ret == GST_FLOW_OK) {
     GstBuffer *outbuf;
     GstClockTime pts, dts;
     guint64 pts_dist, dts_dist;
@@ -894,15 +880,11 @@ gst_tensor_reschedule_chain (GstPad * pad, GstObject * parent, GstBuffer * buf)
 
       if (fn > 0 && fd > 0) {
         if (GST_CLOCK_TIME_IS_VALID (pts)) {
-          pts +=
-              gst_util_uint64_scale_int (pts_dist * fd, GST_SECOND,
-              fn * frame_size);
+          pts += gst_util_uint64_scale_int (pts_dist * fd, GST_SECOND, fn * frame_size);
         }
 
         if (GST_CLOCK_TIME_IS_VALID (dts)) {
-          dts +=
-              gst_util_uint64_scale_int (dts_dist * fd, GST_SECOND,
-              fn * frame_size);
+          dts += gst_util_uint64_scale_int (dts_dist * fd, GST_SECOND, fn * frame_size);
         }
       }
     }
@@ -944,8 +926,7 @@ gst_tensor_reschedule_chain (GstPad * pad, GstObject * parent, GstBuffer * buf)
  * @brief Called to perform state change.
  */
 static GstStateChangeReturn
-gst_tensor_reschedule_change_state (GstElement * element,
-    GstStateChange transition)
+gst_tensor_reschedule_change_state (GstElement *element, GstStateChange transition)
 {
   GstTensorReschedule *self;
   GstStateChangeReturn ret;
@@ -977,7 +958,7 @@ gst_tensor_reschedule_change_state (GstElement * element,
  * @brief Clear and reset data.
  */
 static void
-gst_tensor_reschedule_reset (GstTensorReschedule * self)
+gst_tensor_reschedule_reset (GstTensorReschedule *self)
 {
   /* remove all buffers from adapter */
   gst_tensor_aggregation_clear_all (self->adapter_table);
@@ -987,8 +968,7 @@ gst_tensor_reschedule_reset (GstTensorReschedule * self)
  * @brief Get pad caps for caps negotiation.
  */
 static GstCaps *
-gst_tensor_reschedule_query_caps (GstTensorReschedule * self, GstPad * pad,
-    GstCaps * filter)
+gst_tensor_reschedule_query_caps (GstTensorReschedule *self, GstPad *pad, GstCaps *filter)
 {
   GstCaps *caps;
   GstTensorsConfig *config;
@@ -1009,8 +989,7 @@ gst_tensor_reschedule_query_caps (GstTensorReschedule * self, GstPad * pad,
   if (caps && filter) {
     GstCaps *intersection;
 
-    intersection =
-        gst_caps_intersect_full (filter, caps, GST_CAPS_INTERSECT_FIRST);
+    intersection = gst_caps_intersect_full (filter, caps, GST_CAPS_INTERSECT_FIRST);
 
     gst_caps_unref (caps);
     caps = intersection;
@@ -1023,8 +1002,7 @@ gst_tensor_reschedule_query_caps (GstTensorReschedule * self, GstPad * pad,
  * @brief Parse caps and set tensor info.
  */
 static gboolean
-gst_tensor_reschedule_parse_caps (GstTensorReschedule * self,
-    const GstCaps * caps)
+gst_tensor_reschedule_parse_caps (GstTensorReschedule *self, const GstCaps *caps)
 {
   GstStructure *structure;
   GstTensorsConfig config;
@@ -1037,8 +1015,8 @@ gst_tensor_reschedule_parse_caps (GstTensorReschedule * self,
 
   structure = gst_caps_get_structure (caps, 0);
 
-  if (!gst_tensors_config_from_structure (&config, structure) ||
-      !gst_tensors_config_validate (&config)) {
+  if (!gst_tensors_config_from_structure (&config, structure)
+      || !gst_tensors_config_validate (&config)) {
     GST_ERROR_OBJECT (self, "Cannot configure tensor info");
     return FALSE;
   }
@@ -1064,8 +1042,8 @@ gst_tensor_reschedule_parse_caps (GstTensorReschedule * self,
    * if frames_out=10 and frames_dim=3, then out-dimension is 2:200:200:10.
    * if frames_out=10 and frames_dim=2, then out-dimension is 2:200:2000:1.
    */
-  if (self->frames_dim >= NNS_TENSOR_RANK_LIMIT ||
-      (_info->dimension[self->frames_dim] % self->frames_in) != 0) {
+  if (self->frames_dim >= NNS_TENSOR_RANK_LIMIT
+      || (_info->dimension[self->frames_dim] % self->frames_in) != 0) {
     GST_ERROR_OBJECT (self, "Cannot update dimension in output tensor");
     return FALSE;
   }
