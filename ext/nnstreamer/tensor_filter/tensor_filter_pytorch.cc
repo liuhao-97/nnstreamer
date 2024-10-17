@@ -538,9 +538,13 @@ TorchCore::invoke (const GstTensorFilterProperties *prop,
    * As the input information has not been verified, the first run for the model
    * is encapsulated in a try-catch block
    */
+  struct timespec startexec;
+  struct timespec endexec;
   if (first_run) {
     try {
+      clock_gettime (CLOCK_REALTIME, &startexec);
       output_value = model->forward (input_feeds);
+      clock_gettime (CLOCK_REALTIME, &endexec);
       first_run = false;
     } catch (const std::runtime_error &re) {
       ml_loge ("Runtime error while running the model: %s", re.what ());
@@ -553,8 +557,23 @@ TorchCore::invoke (const GstTensorFilterProperties *prop,
       return -4;
     }
   } else {
+    clock_gettime (CLOCK_REALTIME, &startexec);
     output_value = model->forward (input_feeds);
+    clock_gettime (CLOCK_REALTIME, &endexec);
   }
+
+  g_print ("execlatency: %ld, ns:%ld\n", endexec.tv_sec - startexec.tv_sec,
+      endexec.tv_nsec - startexec.tv_nsec);
+
+
+  // struct timespec start, end;
+  // clock_gettime (CLOCK_REALTIME, &start);
+  // g_print ("Infstartexec: %ld, ns:%ld\n", startexec.tv_sec, startexec.tv_nsec);
+  // g_print ("Infendexec: %ld, ns:%ld\n", endexec.tv_sec, endexec.tv_nsec);
+  // clock_gettime (CLOCK_REALTIME, &end);
+  // double elapsed_time = (end.tv_sec - start.tv_sec) * 1e9 + (end.tv_nsec - start.tv_nsec);
+  // printf ("Time taken by g_print: %.3f nanoseconds\n", elapsed_time);
+
 
   unsigned int idx = 0;
   int retval = serializeOutput (output_value, output, &idx, outputTensorMeta.num_tensors);
