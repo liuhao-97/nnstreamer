@@ -533,14 +533,17 @@ TorchCore::invoke (const GstTensorFilterProperties *prop,
 
     input_feeds.emplace_back (tensor);
   }
-
+  struct timespec startexec;
+  struct timespec endexec;
   /**
    * As the input information has not been verified, the first run for the model
    * is encapsulated in a try-catch block
    */
   if (first_run) {
     try {
+      clock_gettime (CLOCK_REALTIME, &startexec);
       output_value = model->forward (input_feeds);
+      clock_gettime (CLOCK_REALTIME, &endexec);
       first_run = false;
     } catch (const std::runtime_error &re) {
       ml_loge ("Runtime error while running the model: %s", re.what ());
@@ -553,9 +556,16 @@ TorchCore::invoke (const GstTensorFilterProperties *prop,
       return -4;
     }
   } else {
+    clock_gettime (CLOCK_REALTIME, &startexec);
     output_value = model->forward (input_feeds);
+    clock_gettime (CLOCK_REALTIME, &endexec);
   }
 
+  // g_print ("execlatency: %ld, ns:%ld\n", endexec.tv_sec - startexec.tv_sec,
+  //     endexec.tv_nsec - startexec.tv_nsec);
+  g_print ("execlatency0: %ld, ns:%ld\n", startexec.tv_sec, startexec.tv_nsec);
+  g_print ("execlatency1: %ld, ns:%ld\n", endexec.tv_sec, endexec.tv_nsec);
+  
   unsigned int idx = 0;
   int retval = serializeOutput (output_value, output, &idx, outputTensorMeta.num_tensors);
   if (retval) {
